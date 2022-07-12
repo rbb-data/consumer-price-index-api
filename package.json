@@ -1,0 +1,29 @@
+{
+  "name": "api-starter",
+  "version": "0.1.0",
+  "description": "Starter to develop and deploy APIs via Google cloud functions",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=myAPI",
+    "watch": "npm-watch start",
+    "format": "prettier --ignore-path .gitignore --write ."
+  },
+  "watch": {
+    "start": "*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rbb-data/api-starter.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rbb-data/api-starter/issues"
+  },
+  "homepage": "https://github.com/rbb-data/api-starter#readme",
+  "devDependencies": {
+    "@google-cloud/functions-framework": "^2.1.0",
+    "npm-watch": "^0.11.0",
+    "prettier": "2.5.1"
+  }
+}
