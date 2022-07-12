@@ -1,11 +1,13 @@
 {
-  "name": "api-starter",
+  "name": "consumer-price-index-api",
   "version": "0.1.0",
-  "description": "Starter to develop and deploy APIs via Google cloud functions",
+  "private": "true",
   "main": "index.js",
   "scripts": {
-    "start": "functions-framework --target=myAPI",
+    "start": "functions-framework --target=consumerPriceIndexAPI",
     "watch": "npm-watch start",
+    "predeploy": "gcloud config set project rbb-data-inflation",
+    "deploy": "gcloud functions deploy consumerPriceIndexAPI --runtime=nodejs16 --trigger-http --allow-unauthenticated",
     "format": "prettier --ignore-path .gitignore --write ."
   },
   "watch": {
@@ -25,5 +27,9 @@
     "@google-cloud/functions-framework": "^2.1.0",
     "npm-watch": "^0.11.0",
     "prettier": "2.5.1"
+  },
+  "dependencies": {
+    "@google-cloud/secret-manager": "^4.0.0",
+    "promise-mysql": "^5.2.0"
   }
 }

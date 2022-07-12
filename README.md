@@ -1,8 +1,29 @@
-# api-starter
+# consumer-price-index
 
-Starter to develop and deploy APIs via Google Cloud Functions
+Exposes consumer price indices from [Genesis (Destatis)](https://www-genesis.destatis.de/genesis//online?operation=table&code=61111-0006&bypass=true&levelindex=0&levelid=1657617156882#abreadcrumb)
 
-## Get started
+## Run locally
+
+> **Note**
+>
+> First, you'll need to set up the necessary credentials. Download the key file that belongs to the service account `rbb-data-inflation@appspot.gserviceaccount.com` and store it under `rbb-data-inflation-fc4113adea34.json`.
+
+To run the app locally, download and install the `cloud_sql_proxy` by [following the instructions](https://cloud.google.com/sql/docs/mysql/sql-proxy#install).
+
+Create a directory for the Unix socket and give write access to the user running the proxy:
+
+```bash
+mkdir socket
+chown -R $USER socket
+```
+
+Finally, load environment variables from `.env`
+
+```bash
+export $(cat .env | xargs)
+```
+
+and install and run the app in watch mode:
 
 ```bash
 npm install
@@ -11,32 +32,10 @@ npm run watch
 
 Go to `http://localhost:8080/` to interact with your API. Your code lives in `index.js`. The site will be reloaded whenever `*.js` files change (specified in `package.json` under `watch`).
 
-## Deploy (via Google Cloud Functions)
+These instructions follow advice given in https://github.com/GoogleCloudPlatform/nodejs-docs-samples/tree/3259904684ebaf199faef4a6e3518c911b80cc2b/cloud-sql/mysql/mysql
 
-**Note:** This repo contains a single API called `myAPI` (defined in `index.js`). To change its name, edit the name of the exported function in `index.js` and the `--target` parameter in the npm script `start`.
-
-Make sure to connect to the appropriate project:
+## Deploy
 
 ```bash
-gcloud config set project <PROJECT-ID>
-```
-
-Enable cloud functions for the current project:
-
-```bash
-gcloud services enable cloudfunctions.googleapis.com
-```
-
-Set the region to "Frankfurt":
-
-```bash
-gcloud config set functions/region europe-west3
-```
-
-Deploy:
-
-You will need to specify the runtime you are using. Available run times are listed at: https://cloud.google.com/sdk/gcloud/reference/functions/deploy#--runtime. To find the current node version you're running, type `node --version` in a terminal.
-
-```bash
-gcloud functions deploy myAPI --runtime=nodejs16 --trigger-http --allow-unauthenticated
+npm run deploy
 ```
