@@ -1,3 +1,4 @@
+const functions = require('@google-cloud/functions-framework');
 const mysql = require('promise-mysql');
 
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
@@ -11,7 +12,7 @@ const client = new SecretManagerServiceClient();
  * @param {Object} res Cloud Function response context.
  *                     More info: https://expressjs.com/en/api.html#res
  */
-exports.consumerPriceIndexAPI = async (req, res) => {
+functions.http('consumer-price-index-api', async (req, res) => {
   // handle CORS
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') {
@@ -57,16 +58,26 @@ exports.consumerPriceIndexAPI = async (req, res) => {
   };
 
   async function handleGET(req, res) {
+    const { mode } = req.query;
+
     // establish database connection
     const pool = await createPool().catch(() => {
       res.status(500).send("Database connection can't be established").end();
     });
 
-    // example
-    const sql = 'SELECT * FROM consumer_price_index LIMIT ?';
-    const entries = await pool.query(sql, [5]);
+    const handleMostRecentEntry = async (req, res) => {
+      const { item_id: itemId = '' } = req.query;
+      const sql = [
+        'SELECT * FROM consumer_price_index',
+        'ORDER BY year DESC, month DESC LIMIT 1',
+      ];
+      if (itemId) sql.splice(1, 0, 'WHERE item_id = ?');
+      const entry = await pool.query(sql.join(' '), itemId);
+      res.status(200).json(entry).end();
+    };
 
-    res.status(200).json(entries).end();
+    if (mode === 'most-recent-entry') await handleMostRecentEntry(req, res);
+    else res.status(400).send('Mode is invalid').end();
   }
 
   async function handlePOST(req, res) {
@@ -136,4 +147,4 @@ exports.consumerPriceIndexAPI = async (req, res) => {
 
   if (req.method === 'GET') await handleGET(req, res);
   else if (req.method === 'POST') await handlePOST(req, res);
-};
+});

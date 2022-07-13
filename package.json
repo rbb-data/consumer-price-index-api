@@ -4,10 +4,10 @@
   "private": "true",
   "main": "index.js",
   "scripts": {
-    "start": "functions-framework --target=consumerPriceIndexAPI",
+    "start": "functions-framework --target=consumer-price-index-api",
     "watch": "npm-watch start",
     "predeploy": "gcloud config set project rbb-data-inflation",
-    "deploy": "gcloud functions deploy consumerPriceIndexAPI --runtime=nodejs16 --trigger-http --allow-unauthenticated",
+    "deploy": "gcloud functions deploy consumer-price-index-api --runtime=nodejs16 --trigger-http --allow-unauthenticated",
     "format": "prettier --ignore-path .gitignore --write ."
   },
   "watch": {
@@ -24,11 +24,11 @@
   },
   "homepage": "https://github.com/rbb-data/api-starter#readme",
   "devDependencies": {
-    "@google-cloud/functions-framework": "^2.1.0",
     "npm-watch": "^0.11.0",
     "prettier": "2.5.1"
   },
   "dependencies": {
+    "@google-cloud/functions-framework": "^3.1.2",
     "@google-cloud/secret-manager": "^4.0.0",
     "promise-mysql": "^5.2.0"
   }
