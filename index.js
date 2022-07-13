@@ -72,8 +72,9 @@ functions.http('consumer-price-index-api', async (req, res) => {
         'ORDER BY year DESC, month DESC LIMIT 1',
       ];
       if (itemId) sql.splice(1, 0, 'WHERE item_id = ?');
-      const entry = await pool.query(sql.join(' '), itemId);
-      res.status(200).json(entry).end();
+      const entries = await pool.query(sql.join(' '), itemId);
+      if (entries.length > 0) res.status(200).json(entries[0]).end();
+      else res.status(200).json('').end();
     };
 
     if (mode === 'most-recent-entry') await handleMostRecentEntry(req, res);

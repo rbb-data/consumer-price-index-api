@@ -1,14 +1,25 @@
-# consumer-price-index
+# Consumer price index API (Germany)
 
 Exposes consumer price indices from [Genesis (Destatis)](https://www-genesis.destatis.de/genesis//online?operation=table&code=61111-0006&bypass=true&levelindex=0&levelid=1657617156882#abreadcrumb)
 
-## Run locally
+Live at: https://europe-west3-rbb-data-inflation.cloudfunctions.net/consumer-price-index-api
+
+## Documentation
+
+- `mode=most-recent-entry`: yields the most recent entry, as indicated by columns `year` and `month`
+  - `item_id=<ITEM_ID>`: yields the most recent entry for an item with `<ITEM_ID>`, e.g. `?mode=most-recent-entry&item_id=CC13-0111101100`
+
+## Development
+
+### Run locally
 
 > **Note**
 >
-> First, you'll need to set up the necessary credentials. Download the key file that belongs to the service account `rbb-data-inflation@appspot.gserviceaccount.com` and store it under `rbb-data-inflation-fc4113adea34.json`.
+> To run the app locally, download and install the `cloud_sql_proxy` by [following the instructions](https://cloud.google.com/sql/docs/mysql/sql-proxy#install).
 
-To run the app locally, download and install the `cloud_sql_proxy` by [following the instructions](https://cloud.google.com/sql/docs/mysql/sql-proxy#install).
+> **Note**
+>
+> Add the necessary credentials by downloading the key file that belongs to the service account `rbb-data-inflation@appspot.gserviceaccount.com` and storing the downloaded file as `rbb-data-inflation-fc4113adea34.json`.
 
 Load environment variables from `.env`:
 
@@ -38,9 +49,7 @@ npm run watch
 
 Go to `http://localhost:8080/` to interact with your API. Your code lives in `index.js`.
 
-These instructions follow advice given in https://github.com/GoogleCloudPlatform/nodejs-docs-samples/tree/3259904684ebaf199faef4a6e3518c911b80cc2b/cloud-sql/mysql/mysql
-
-## Deploy
+### Deploy
 
 ```bash
 npm run deploy
