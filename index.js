@@ -66,18 +66,49 @@ functions.http('consumer-price-index-api', async (req, res) => {
     });
 
     const handleMostRecentEntry = async (req, res) => {
-      const { item_id: itemId = '' } = req.query;
+      const { id = '' } = req.query;
       const sql = [
         'SELECT * FROM consumer_price_index',
         'ORDER BY year DESC, month DESC LIMIT 1',
       ];
-      if (itemId) sql.splice(1, 0, 'WHERE item_id = ?');
-      const entries = await pool.query(sql.join(' '), itemId);
+      if (id) sql.splice(1, 0, 'WHERE id = ?');
+      const entries = await pool.query(sql.join(' '), id);
       if (entries.length > 0) res.status(200).json(entries[0]).end();
       else res.status(200).json('').end();
     };
 
+    const handleSelect = async (req, res) => {
+      const { ids: queryIds, year, month } = req.query;
+
+      const ids = queryIds && queryIds.split(',');
+
+      let conditions = [],
+        inserts = [];
+      if (ids && ids.length > 0) {
+        conditions.push('id IN (?)');
+        inserts.push(ids);
+      }
+      if (year) {
+        conditions.push('year = ?');
+        inserts.push(year);
+      }
+      if (month) {
+        conditions.push('month = ?');
+        inserts.push(month);
+      }
+
+      for (let i = 0; i < conditions.length; i++) {
+        if (i === 0) conditions[i] = 'WHERE ' + conditions[i];
+        else conditions[i] = 'AND ' + conditions[i];
+      }
+      const sql = 'SELECT * FROM consumer_price_index ' + conditions.join(' ');
+      const entries = await pool.query(sql, inserts);
+
+      res.status(200).json(entries).end();
+    };
+
     if (mode === 'most-recent-entry') await handleMostRecentEntry(req, res);
+    else if (mode === 'select') await handleSelect(req, res);
     else res.status(400).send('Mode is invalid').end();
   }
 
@@ -89,7 +120,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
         return { ok: false, msg: 'No bearer token provided' };
       }
 
-      const token = authorization.replace('Bearer', '').trim();
+      const [, token] = authorization.match(/Bearer (.*)/);
       const secret = await accessSecret(process.env.CLOUD_API_SECRET);
 
       if (token !== secret) return { ok: false, msg: 'Token invalid' };
@@ -118,7 +149,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
     if (!isAuthorized) res.status(401).send(authMsg).end();
 
     // check if the provided data is valid
-    const columns = ['item_id', 'item_name', 'year', 'month', 'value'];
+    const columns = ['id', 'name', 'year', 'month', 'value'];
     const { body: data } = req;
     const { ok: isValid, msg: dataMsg } = checkData(data, columns);
     if (!isValid) res.status(400).send(dataMsg).end();

@@ -7,7 +7,7 @@ Live at: https://europe-west3-rbb-data-inflation.cloudfunctions.net/consumer-pri
 ## Documentation
 
 - `mode=most-recent-entry`: yields the most recent entry, as indicated by columns `year` and `month`
-  - `item_id=<ITEM_ID>`: yields the most recent entry for an item with `<ITEM_ID>`, e.g. `?mode=most-recent-entry&item_id=CC13-0111101100`
+  - `id=<ID>`: yields the most recent entry for an item with `<ID>`, e.g. `?mode=most-recent-entry&id=CC13-0111101100`
 
 ## Development
 
