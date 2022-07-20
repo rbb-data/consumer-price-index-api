@@ -7,7 +7,13 @@ Live at: https://europe-west3-rbb-data-inflation.cloudfunctions.net/consumer-pri
 ## Documentation
 
 - `mode=most-recent-entry`: yields the most recent entry, as indicated by columns `year` and `month`
+
   - `id=<ID>`: yields the most recent entry for an item with `<ID>`, e.g. `?mode=most-recent-entry&id=CC13-0111101100`
+
+- `mode=select`: yields a list of entries, constrained by given constraints (careful! the response might be a lot of data; if no constraints are given, the resulting list is restricted to a length of 10)
+  - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=CC13-0111101100,CC13-0111109100,CC13-0111201100`
+  - `year=<YEAR>`, e.g. `year=2022`
+  - `month=<MONTH>`, where `<MONTH>` is in `1,...,12`, e.g. `month=5` (May)
 
 ## Development
 

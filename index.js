@@ -101,7 +101,13 @@ functions.http('consumer-price-index-api', async (req, res) => {
         if (i === 0) conditions[i] = 'WHERE ' + conditions[i];
         else conditions[i] = 'AND ' + conditions[i];
       }
-      const sql = 'SELECT * FROM consumer_price_index ' + conditions.join(' ');
+      let sql = 'SELECT * FROM consumer_price_index ' + conditions.join(' ');
+
+      // safety net in case no conditions are enforced
+      if (conditions.length === 0) {
+        sql += 'LIMIT 10';
+      }
+
       const entries = await pool.query(sql, inserts);
 
       res.status(200).json(entries).end();
