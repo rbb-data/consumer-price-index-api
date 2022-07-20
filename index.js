@@ -80,7 +80,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
     const handleSelect = async (req, res) => {
       const { ids: queryIds, year, month } = req.query;
 
-      const ids = queryIds && queryIds.split(',');
+      const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
       let conditions = [],
         inserts = [];
