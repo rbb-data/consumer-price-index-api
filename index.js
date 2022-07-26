@@ -129,6 +129,16 @@ functions.http('consumer-price-index-api', async (req, res) => {
       res.status(200).json(entries).end();
     };
 
+    const handleMostOftenRemoved = async (req, res) => {
+      let { limit = 3 } = req.query;
+      limit = +limit;
+
+      const sql = 'SELECT * FROM products ORDER BY removed DESC LIMIT ?';
+      console.log(mysql.format(sql, [limit]));
+      const entries = await pool.query(sql, [limit]);
+      res.status(200).json(entries).end();
+    };
+
     async function handleConsumerPriceIndex(req, res) {
       if (mode === 'most-recent-date') await handleMostRecentDate(req, res);
       else if (mode === 'select') await handleCPISelect(req, res);
@@ -147,6 +157,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
     async function handleProducts(req, res) {
       if (mode === 'select') await handleProductSelect(req, res);
+      else if (mode === 'most-often-removed')
+        await handleMostOftenRemoved(req, res);
       else res.status(200).send('Products table').end();
     }
 
