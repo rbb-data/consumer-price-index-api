@@ -40,7 +40,7 @@ const createPool = async () => {
 };
 
 // establish database connection
-const pool = await createPool().catch(() => {
+const poolPromise = createPool().catch(() => {
   res.status(500).send("Database connection can't be established").end();
 });
 
@@ -62,13 +62,15 @@ functions.http('consumer-price-index-api', async (req, res) => {
     res.status(204).send('').end();
   }
 
-  async function handleGET(req, res) {
-    const { mode } = req.query;
+  const pool = await poolPromise;
 
-    const handleMostRecentEntry = async (req, res) => {
+  async function handleGET(req, res) {
+    const { table, mode } = req.query;
+
+    const handleMostRecentDate = async (req, res) => {
       const { id = '' } = req.query;
       const sql = [
-        'SELECT * FROM consumer_price_index',
+        'SELECT year, month FROM consumer_price_index',
         'ORDER BY year DESC, month DESC LIMIT 1',
       ];
       if (id) sql.splice(1, 0, 'WHERE id = ?');
@@ -77,7 +79,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
       else res.status(200).json('').end();
     };
 
-    const handleSelect = async (req, res) => {
+    const handleCPISelect = async (req, res) => {
       const { ids: queryIds, year, month } = req.query;
 
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
@@ -113,9 +115,50 @@ functions.http('consumer-price-index-api', async (req, res) => {
       res.status(200).json(entries).end();
     };
 
-    if (mode === 'most-recent-entry') await handleMostRecentEntry(req, res);
-    else if (mode === 'select') await handleSelect(req, res);
-    else res.status(400).send('Mode is invalid').end();
+    const handleProductSelect = async (req, res) => {
+      const { ids: queryIds } = req.query;
+      const ids = queryIds && decodeURIComponent(queryIds).split(',');
+
+      if (!ids || ids.length === 0) {
+        res.status(400).send('Missing query parameter <i>ids</i>').end();
+      }
+
+      let sql = 'SELECT * FROM products WHERE id IN (?)';
+      const entries = await pool.query(sql, [ids]);
+
+      res.status(200).json(entries).end();
+    };
+
+    async function handleConsumerPriceIndex(req, res) {
+      if (mode === 'most-recent-date') await handleMostRecentDate(req, res);
+      else if (mode === 'select') await handleCPISelect(req, res);
+      else
+        res
+          .status(400)
+          .send(
+            [
+              'Mode is invalid.',
+              'Valid modes for table <i>consumer-price-index</i>:',
+              '<i>most-recent-date</i>, <i>select</i>',
+            ].join(' ')
+          )
+          .end();
+    }
+
+    async function handleProducts(req, res) {
+      if (mode === 'select') await handleProductSelect(req, res);
+      else res.status(200).send('Products table').end();
+    }
+
+    if (table === 'consumer-price-index')
+      await handleConsumerPriceIndex(req, res);
+    else if (table === 'products') await handleProducts(req, res);
+    else
+      res
+        .status(400)
+        .send(
+          'Table is invalid. Valid tables: <i>consumer-price-index</i>, <i>products</i>'
+        );
   }
 
   async function handlePOST(req, res) {
