@@ -162,18 +162,22 @@ functions.http('consumer-price-index-api', async (req, res) => {
       else res.status(200).send('Products table').end();
     }
 
-    if (table === 'consumer-price-index')
+    if (table === 'consumer-price-index') {
       await handleConsumerPriceIndex(req, res);
-    else if (table === 'products') await handleProducts(req, res);
-    else
+    } else if (table === 'products') {
+      await handleProducts(req, res);
+    } else {
       res
         .status(400)
         .send(
           'Table is invalid. Valid tables: <i>consumer-price-index</i>, <i>products</i>'
         );
+    }
   }
 
   async function handlePOST(req, res) {
+    const { table } = req.query;
+
     const authorize = async (req) => {
       const { authorization } = req.headers;
 
@@ -189,7 +193,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
       return { ok: true };
     };
 
-    const checkData = (data, columns) => {
+    const checkCpiData = (data, columns) => {
       if (!data) return { ok: false, msg: 'No data provided' };
 
       const isValid = (d) => columns.every((col) => d[col] !== undefined);
@@ -205,32 +209,99 @@ functions.http('consumer-price-index-api', async (req, res) => {
       return { ok: true };
     };
 
+    const updateConsumerPriceIndex = async (req, res) => {
+      // check if the provided data is valid
+      const columns = ['id', 'name', 'year', 'month', 'value'];
+      const { body: data } = req;
+      const { ok: isValid, msg: dataMsg } = checkCpiData(data, columns);
+      if (!isValid) res.status(400).send(dataMsg).end();
+
+      // insert data into database
+      try {
+        if (Array.isArray(data)) {
+          const sql = `INSERT INTO consumer_price_index (${columns}) VALUES ? ON DUPLICATE KEY UPDATE value = VALUES(value)`;
+          const values = data.map((d) => columns.map((col) => d[col]));
+          await pool.query(sql, [values]);
+        } else if (typeof data === 'object') {
+          const sql =
+            'INSERT INTO consumer_price_index SET ? ON DUPLICATE KEY UPDATE value = ?';
+          await pool.query(sql, [data, data.value]);
+        }
+      } catch (err) {
+        return res.status(500).send('Unable to insert data into table').end();
+      }
+
+      res.status(200).send('');
+    };
+
+    const checkProductData = (data) => {
+      if (!data) return { ok: false, msg: 'No data provided' };
+
+      if (!data.added || !data.removed)
+        return { ok: false, msg: 'Invalid data format' };
+
+      if (!Array.isArray(data.added) || !Array.isArray(data.removed)) {
+        return { ok: false, msg: 'Invalid data format' };
+      }
+
+      return { ok: true };
+    };
+
+    const updateProducts = async (req, res) => {
+      const { body: data } = req;
+
+      // check if the provided data is valid
+      const { ok: isValid, msg: dataMsg } = checkProductData(data);
+      if (!isValid) res.status(400).send(dataMsg).end();
+
+      const ids = new Set();
+
+      const nAdded = new Map();
+      for (let i = 0; i < data.added.length; i++) {
+        const id = data.added[i];
+        ids.add(id);
+        if (!nAdded.has(id)) nAdded.set(id, 0);
+        nAdded.set(id, nAdded.get(id) + 1);
+      }
+
+      const nRemoved = new Map();
+      for (let i = 0; i < data.removed.length; i++) {
+        const id = data.removed[i];
+        ids.add(id);
+        if (!nRemoved.has(id)) nRemoved.set(id, 0);
+        nRemoved.set(id, nRemoved.get(id) + 1);
+      }
+
+      const entries = Array.from(ids).map((id) => [
+        id,
+        nAdded.has(id) ? nAdded.get(id) : 0,
+        nRemoved.has(id) ? nRemoved.get(id) : 0,
+      ]);
+
+      const sql = [
+        'INSERT INTO products (id, added, removed) VALUES ?',
+        'ON DUPLICATE KEY UPDATE',
+        'added = VALUES(added) + added,',
+        'removed = VALUES(removed) + removed',
+      ].join(' ');
+      await pool.query(sql, [entries]);
+
+      res.status(200).send('');
+    };
+
     // check if request is authorized
     const { ok: isAuthorized, msg: authMsg } = await authorize(req);
     if (!isAuthorized) res.status(401).send(authMsg).end();
 
-    // check if the provided data is valid
-    const columns = ['id', 'name', 'year', 'month', 'value'];
-    const { body: data } = req;
-    const { ok: isValid, msg: dataMsg } = checkData(data, columns);
-    if (!isValid) res.status(400).send(dataMsg).end();
-
-    // insert data into database
-    try {
-      if (Array.isArray(data)) {
-        const sql = `INSERT INTO consumer_price_index (${columns}) VALUES ? ON DUPLICATE KEY UPDATE value = VALUES(value)`;
-        const values = data.map((d) => columns.map((col) => d[col]));
-        await pool.query(sql, [values]);
-      } else if (typeof data === 'object') {
-        const sql =
-          'INSERT INTO consumer_price_index SET ? ON DUPLICATE KEY UPDATE value = ?';
-        await pool.query(sql, [data, data.value]);
-      }
-    } catch (err) {
-      return res.status(500).send('Unable to insert data into table').end();
+    if (table === 'consumer-price-index') {
+      await updateConsumerPriceIndex(req, res);
+    } else if (table === 'products') {
+      await updateProducts(req, res);
+    } else {
+      res
+        .status(400)
+        .send('Table is invalid. Valid tables: consumer-price-index, products');
     }
-
-    res.status(200).send('');
   }
 
   if (req.method === 'GET') await handleGET(req, res);

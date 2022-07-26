@@ -6,6 +6,8 @@ Live at: https://europe-west3-rbb-data-inflation.cloudfunctions.net/consumer-pri
 
 ## Documentation
 
+### GET
+
 The database contains two tables, `consumer-price-index` and `products`. `consumer-price-indices` stores CPI values for a list of groceries since 2015.`products` counts the number of times a product has been added and removed from a basket.
 
 - `table=consumer-price-index`
@@ -24,6 +26,17 @@ The database contains two tables, `consumer-price-index` and `products`. `consum
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=ravioli,rouladen`
   - `mode=most-often-removed`: yields a list of products that have been removed the most (measured by the absolute count)
     - `limit=<INT>`: number of products to return (default: 3)
+
+### POST
+
+You'll need to authenticate yourself using a Bearer token.
+
+- `table=consumer-price-index`
+
+  - body sent is either a single json object with fields `id` (category id, e.g. 'CC13-0111101100'), `name` (category name), `year` (e.g. 2022), `month` (1-12) and `value` (consumer price index) or a list of such objects
+
+- `table=products`
+  - body sent is a json object such as `{ added: [<ID>, ...], removed: [<ID>, ...] }`
 
 ## Development
 
