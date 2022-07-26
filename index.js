@@ -4,6 +4,46 @@ const mysql = require('promise-mysql');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const client = new SecretManagerServiceClient();
 
+const accessSecret = async (name) => {
+  const [secret] = await client.accessSecretVersion({ name });
+  return secret.payload.data.toString('utf8');
+};
+
+const createUnixSocketPool = async (config) => {
+  const dbSocketPath = process.env.DB_SOCKET_PATH || '/cloudsql';
+
+  // establish a connection to the database
+  return mysql.createPool({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
+    socketPath: `${dbSocketPath}/${process.env.INSTANCE_CONNECTION_NAME}`,
+    ...config,
+  });
+};
+
+const createPool = async () => {
+  const config = {
+    connectionLimit: 1,
+    connectTimeout: 10000,
+    acquireTimeout: 10000,
+    waitForConnections: true,
+    queueLimit: 0,
+  };
+
+  // access db password and store it in an environment variable
+  process.env.DB_PASS = await accessSecret(
+    process.env.CLOUD_SQL_CREDENTIALS_SECRET
+  );
+
+  return createUnixSocketPool(config);
+};
+
+// establish database connection
+const pool = await createPool().catch(() => {
+  res.status(500).send("Database connection can't be established").end();
+});
+
 /**
  * HTTP Cloud Function.
  *
@@ -22,48 +62,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
     res.status(204).send('').end();
   }
 
-  const accessSecret = async (name) => {
-    const [secret] = await client.accessSecretVersion({ name });
-    return secret.payload.data.toString('utf8');
-  };
-
-  const createUnixSocketPool = async (config) => {
-    const dbSocketPath = process.env.DB_SOCKET_PATH || '/cloudsql';
-
-    // establish a connection to the database
-    return mysql.createPool({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASS,
-      database: process.env.DB_NAME,
-      socketPath: `${dbSocketPath}/${process.env.INSTANCE_CONNECTION_NAME}`,
-      ...config,
-    });
-  };
-
-  const createPool = async () => {
-    const config = {
-      connectionLimit: 1,
-      connectTimeout: 10000,
-      acquireTimeout: 10000,
-      waitForConnections: true,
-      queueLimit: 0,
-    };
-
-    // access db password and store it in an environment variable
-    process.env.DB_PASS = await accessSecret(
-      process.env.CLOUD_SQL_CREDENTIALS_SECRET
-    );
-
-    return createUnixSocketPool(config);
-  };
-
   async function handleGET(req, res) {
     const { mode } = req.query;
-
-    // establish database connection
-    const pool = await createPool().catch(() => {
-      res.status(500).send("Database connection can't be established").end();
-    });
 
     const handleMostRecentEntry = async (req, res) => {
       const { id = '' } = req.query;
@@ -159,11 +159,6 @@ functions.http('consumer-price-index-api', async (req, res) => {
     const { body: data } = req;
     const { ok: isValid, msg: dataMsg } = checkData(data, columns);
     if (!isValid) res.status(400).send(dataMsg).end();
-
-    // establish connection
-    const pool = await createPool().catch(() => {
-      res.status(500).send("Database connection can't be established").end();
-    });
 
     // insert data into database
     try {
