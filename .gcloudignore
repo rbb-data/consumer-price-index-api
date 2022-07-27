@@ -10,3 +10,5 @@ cloud_sql_proxy
 rbb-data-inflation-fc4113adea34.json
 .env
 .env.development
+test*
+.vscode
