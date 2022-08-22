@@ -24,7 +24,8 @@ The database contains two tables, `consumer-price-index` and `products`. `consum
 - `table=products`
   - `mode=select`: yields a list of records for the given product ids as `[ { id: <ID>, added: <INT>, removed: <INT> }, ... ]`, where `added` is the number of times a product has been added to the cart and `removed` is the number of times a product has been removed
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=ravioli,rouladen`
-  - `mode=most-often-removed`: yields a list of products that have been removed the most (measured by the absolute count)
+  - `mode=most-often-removed`: yields a list of products that have been removed most often (measured by the ratio `removed / added`)
+    - `minAdded=<INT>`: minimum number of times a product has been added to the cart to be considered (default: 10)
     - `limit=<INT>`: number of products to return (default: 3)
 
 ### POST
