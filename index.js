@@ -126,6 +126,14 @@ functions.http('consumer-price-index-api', async (req, res) => {
       let sql = 'SELECT * FROM products WHERE id IN (?)';
       const entries = await pool.query(sql, [ids]);
 
+      const fetchedIds = entries.map((entry) => entry.id);
+      const missingIds = ids.filter((id) => !fetchedIds.includes(id));
+
+      // add zero counts for products not in the database
+      for (let i = 0; i < missingIds.length; i++) {
+        entries.push({ id: missingIds[i], added: 0, removed: 0 });
+      }
+
       res.status(200).json(entries).end();
     };
 
