@@ -138,13 +138,19 @@ functions.http('consumer-price-index-api', async (req, res) => {
     };
 
     const handleMostOftenRemoved = async (req, res) => {
-      let { minAdded = 10, limit = 3 } = req.query;
+      let { ids: queryIds, minAdded = 10, limit = 3 } = req.query;
+      const ids = queryIds && decodeURIComponent(queryIds).split(',');
       minAdded = +minAdded;
       limit = +limit;
 
-      const sql =
-        'SELECT * FROM products WHERE added >= ? ORDER BY removed / added DESC LIMIT ?';
-      const entries = await pool.query(sql, [minAdded, limit]);
+      let sql = 'SELECT * FROM products WHERE added >= ?';
+      if (ids && ids.length > 0) sql += ' AND id IN (?)';
+      sql += ' ORDER BY removed / added DESC LIMIT ?';
+
+      const inserts =
+        ids && ids.length > 0 ? [minAdded, ids, limit] : [minAdded, limit];
+
+      const entries = await pool.query(sql, inserts);
 
       res.status(200).json(entries).end();
     };
