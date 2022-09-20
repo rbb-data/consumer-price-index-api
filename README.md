@@ -18,8 +18,7 @@ The database contains two tables, `consumer-price-index` and `products`. `consum
 
   - `mode=select`: yields a list of entries, constrained by the given query parameters (**careful!** the response might be large; the response is restricted to a length of 10 if no query parameters are specified)
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=CC13-0111101100,CC13-0111109100,CC13-0111201100`
-    - `year=<YEAR>`, e.g. `year=2022`
-    - `month=<MONTH>`, where `<MONTH>` is in `1,...,12`, e.g. `month=5` (May)
+    - `dates=<YEAR>-<MONTH>,<YEAR>-<MONTH>,...,<YEAR>-<MONTH>`, where `<MONTH>` is in `01,...,12`, e.g. `2022-01,2022-02,2022-03`
 
 - `table=products`
   - `mode=select`: yields a list of records for the given product ids as `[ { id: <ID>, added: <INT>, removed: <INT> }, ... ]`, where `added` is the number of times a product has been added to the cart and `removed` is the number of times a product has been removed

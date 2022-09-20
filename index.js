@@ -80,33 +80,41 @@ functions.http('consumer-price-index-api', async (req, res) => {
     };
 
     const handleCPISelect = async (req, res) => {
-      const { ids: queryIds, year, month } = req.query;
+      const { ids: queryIds, dates: queryDates } = req.query;
 
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
+      const dates = queryDates && decodeURIComponent(queryDates).split(',');
 
-      let conditions = [],
-        inserts = [];
+      let condition = '';
+      let inserts = [];
       if (ids && ids.length > 0) {
-        conditions.push('id IN (?)');
+        condition += 'WHERE id IN (?)';
         inserts.push(ids);
       }
-      if (year) {
-        conditions.push('year = ?');
-        inserts.push(year);
-      }
-      if (month) {
-        conditions.push('month = ?');
-        inserts.push(month);
+      if (dates && dates.length > 0) {
+        if (ids && ids.length) {
+          condition += ' AND (';
+        } else {
+          condition += 'WHERE (';
+        }
+
+        for (let i = 0; i < dates.length; i++) {
+          const match = dates[i].match(/(\d{4})-(\d{2})/);
+          if (match !== null) {
+            const [, year, month] = match;
+            if (i > 0) condition += ' OR ';
+            condition += 'year = ? AND month = ?';
+            inserts.push(+year, +month);
+          }
+        }
+
+        condition += ')';
       }
 
-      for (let i = 0; i < conditions.length; i++) {
-        if (i === 0) conditions[i] = 'WHERE ' + conditions[i];
-        else conditions[i] = 'AND ' + conditions[i];
-      }
-      let sql = 'SELECT * FROM consumer_price_index ' + conditions.join(' ');
+      let sql = 'SELECT * FROM consumer_price_index ' + condition;
 
       // safety net in case no conditions are enforced
-      if (conditions.length === 0) {
+      if (!condition) {
         sql += 'LIMIT 10';
       }
 
