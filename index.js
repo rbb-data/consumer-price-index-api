@@ -146,17 +146,16 @@ functions.http('consumer-price-index-api', async (req, res) => {
     };
 
     const handleMostOftenRemoved = async (req, res) => {
-      let { ids: queryIds, minAdded = 10, limit = 3 } = req.query;
+      let { ids: queryIds, limit = 3 } = req.query;
+
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
-      minAdded = +minAdded;
       limit = +limit;
 
-      let sql = 'SELECT * FROM products WHERE added >= ?';
-      if (ids && ids.length > 0) sql += ' AND id IN (?)';
-      sql += ' ORDER BY removed / added DESC LIMIT ?';
+      let sql = 'SELECT * FROM products';
+      if (ids && ids.length > 0) sql += ' WHERE id IN (?)';
+      sql += ' ORDER BY removed DESC LIMIT ?';
 
-      const inserts =
-        ids && ids.length > 0 ? [minAdded, ids, limit] : [minAdded, limit];
+      const inserts = ids && ids.length > 0 ? [ids, limit] : [limit];
 
       const entries = await pool.query(sql, inserts);
 
@@ -183,7 +182,17 @@ functions.http('consumer-price-index-api', async (req, res) => {
       if (mode === 'select') await handleProductSelect(req, res);
       else if (mode === 'most-often-removed')
         await handleMostOftenRemoved(req, res);
-      else res.status(200).send('Products table').end();
+      else
+        res
+          .status(200)
+          .send(
+            [
+              'Mode is invalid.',
+              'Valid modes for table <i>products</i>:',
+              '<i>most-often-removed</i>, <i>select</i>',
+            ].join(' ')
+          )
+          .end();
     }
 
     if (table === 'consumer-price-index') {
