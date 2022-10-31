@@ -130,6 +130,16 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
       const dates = queryDates && decodeURIComponent(queryDates).split(',');
 
+      if (dates.includes('most-recent')) {
+        const mostRecentDate = await getMostRecentDate(pool, 'CC13-0111101100');
+        for (let i = 0; i < dates.length; i++) {
+          if (dates[i] === 'most-recent') {
+            const month = mostRecentDate.month.toString().padStart(2, '0');
+            dates[i] = `${mostRecentDate.year}-${month}`;
+          }
+        }
+      }
+
       const CPIs = await getCPISelect(pool, ids, dates);
       res.status(200).json(CPIs).end();
     };
@@ -257,7 +267,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
             [
               'Mode is invalid.',
               'Valid modes for table <i>consumer-price-index</i>:',
-              '<i>most-recent-date</i>, <i>select</i>',
+              '<i>most-recent-date</i>, <i>select</i>, <i>live</i>',
             ].join(' ')
           )
           .end();

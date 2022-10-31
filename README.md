@@ -19,7 +19,7 @@ The database contains two tables, `consumer-price-index` and `products`. `consum
   - `mode=select`: yields a list of entries, constrained by the given query parameters (**careful!** the response might be large; the response is restricted to a length of 10 if no query parameters are specified)
 
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=CC13-0111101100,CC13-0111109100,CC13-0111201100`
-    - `dates=YYYY-MM,YYYY-MM,...,YYYY-MM`, e.g. `2022-01,2022-02,2022-03`
+    - `dates=YYYY-MM,YYYY-MM,...,YYYY-MM,most-recent`, e.g. `2022-01,2022-02,2022-03` (`most-recent` is a key that fetches data for the most recent date)
 
   - `mode=live`: yields a list of entries, from the given start date up until to most recent date
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=CC13-0111101100,CC13-0111109100,CC13-0111201100`
