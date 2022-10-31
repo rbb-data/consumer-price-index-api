@@ -44,6 +44,54 @@ const poolPromise = createPool().catch(() => {
   res.status(500).send("Database connection can't be established").end();
 });
 
+async function getMostRecentDate(pool, id = '') {
+  const sql = [
+    'SELECT year, month FROM consumer_price_index',
+    'ORDER BY year DESC, month DESC LIMIT 1',
+  ];
+  if (id) sql.splice(1, 0, 'WHERE id = ?');
+  const entries = await pool.query(sql.join(' '), id);
+  return entries.length > 0 ? entries[0] : undefined;
+}
+
+async function getCPISelect(pool, ids, dates) {
+  let condition = '';
+  let inserts = [];
+  if (ids && ids.length > 0) {
+    condition += 'WHERE id IN (?)';
+    inserts.push(ids);
+  }
+  if (dates && dates.length > 0) {
+    if (ids && ids.length) {
+      condition += ' AND (';
+    } else {
+      condition += 'WHERE (';
+    }
+
+    for (let i = 0; i < dates.length; i++) {
+      const match = dates[i].match(/(\d{4})-(\d{2})/);
+      if (match !== null) {
+        const [, year, month] = match;
+        if (i > 0) condition += ' OR ';
+        condition += 'year = ? AND month = ?';
+        inserts.push(+year, +month);
+      }
+    }
+
+    condition += ')';
+  }
+
+  let sql = 'SELECT * FROM consumer_price_index ' + condition;
+
+  // safety net in case no conditions are enforced
+  if (!condition) {
+    sql += 'LIMIT 10';
+  }
+
+  const entries = await pool.query(sql, inserts);
+  return entries;
+}
+
 /**
  * HTTP Cloud Function.
  *
@@ -69,14 +117,11 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
     const handleMostRecentDate = async (req, res) => {
       const { id = '' } = req.query;
-      const sql = [
-        'SELECT year, month FROM consumer_price_index',
-        'ORDER BY year DESC, month DESC LIMIT 1',
-      ];
-      if (id) sql.splice(1, 0, 'WHERE id = ?');
-      const entries = await pool.query(sql.join(' '), id);
-      if (entries.length > 0) res.status(200).json(entries[0]).end();
-      else res.status(200).json('').end();
+      const mostRecentDate = await getMostRecentDate(pool, id);
+      res
+        .status(200)
+        .json(mostRecentDate || '')
+        .end();
     };
 
     const handleCPISelect = async (req, res) => {
@@ -85,42 +130,81 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
       const dates = queryDates && decodeURIComponent(queryDates).split(',');
 
-      let condition = '';
-      let inserts = [];
-      if (ids && ids.length > 0) {
-        condition += 'WHERE id IN (?)';
-        inserts.push(ids);
+      const CPIs = await getCPISelect(pool, ids, dates);
+      res.status(200).json(CPIs).end();
+    };
+
+    const handleLive = async (req, res) => {
+      const queryStartDate = req.query['start-date'];
+
+      const { ids: queryIds } = req.query;
+      const ids = queryIds && decodeURIComponent(queryIds).split(',');
+
+      if (!queryStartDate) {
+        res.status(400).send('Query parameter start-date is required').end();
       }
-      if (dates && dates.length > 0) {
-        if (ids && ids.length) {
-          condition += ' AND (';
+
+      const match = queryStartDate.match(/(\d{4})-(\d{2})/);
+      if (!match) {
+        res
+          .status(400)
+          .send('Query parameter start-date is not a valid date')
+          .end();
+      }
+
+      const startDate = { year: +match[1], month: +match[2] };
+
+      if (
+        startDate.year == undefined ||
+        startDate.year < 2018 ||
+        startDate.month == undefined ||
+        startDate.month < 1 ||
+        startDate.month > 12
+      ) {
+        res
+          .status(400)
+          .send('Query parameter start-date is not a valid date')
+          .end();
+      }
+
+      const mostRecentDate = await getMostRecentDate(pool, 'CC13-0111101100');
+
+      const getNextMonth = (date) => {
+        if (date.getMonth() == 11) {
+          return new Date(date.getFullYear() + 1, 0, 1);
         } else {
-          condition += 'WHERE (';
+          return new Date(date.getFullYear(), date.getMonth() + 1, 1);
         }
+      };
 
-        for (let i = 0; i < dates.length; i++) {
-          const match = dates[i].match(/(\d{4})-(\d{2})/);
-          if (match !== null) {
-            const [, year, month] = match;
-            if (i > 0) condition += ' OR ';
-            condition += 'year = ? AND month = ?';
-            inserts.push(+year, +month);
-          }
-        }
+      const nativeStartDate = new Date(startDate.year, startDate.month - 1, 1);
+      const nativeEndDate = new Date(
+        mostRecentDate.year,
+        mostRecentDate.month - 1,
+        1
+      );
 
-        condition += ')';
+      if (nativeEndDate.getTime() < nativeStartDate.getTime()) {
+        res
+          .status(400)
+          .send('Query parameter start-date lies in the future')
+          .end();
       }
 
-      let sql = 'SELECT * FROM consumer_price_index ' + condition;
-
-      // safety net in case no conditions are enforced
-      if (!condition) {
-        sql += 'LIMIT 10';
+      let dates = [];
+      let currDate = new Date(
+        nativeStartDate.getFullYear(),
+        nativeStartDate.getMonth(),
+        1
+      );
+      while (currDate.getTime() <= nativeEndDate.getTime()) {
+        const month = (currDate.getMonth() + 1).toString().padStart(2, '0');
+        dates.push(`${currDate.getFullYear()}-${month}`);
+        currDate = getNextMonth(currDate);
       }
 
-      const entries = await pool.query(sql, inserts);
-
-      res.status(200).json(entries).end();
+      const CPIs = await getCPISelect(pool, ids, dates);
+      res.status(200).json(CPIs).end();
     };
 
     const handleProductSelect = async (req, res) => {
@@ -165,6 +249,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
     async function handleConsumerPriceIndex(req, res) {
       if (mode === 'most-recent-date') await handleMostRecentDate(req, res);
       else if (mode === 'select') await handleCPISelect(req, res);
+      else if (mode === 'live') await handleLive(req, res);
       else
         res
           .status(400)
