@@ -41,7 +41,7 @@ const createPool = async () => {
 
 // establish database connection
 const poolPromise = createPool().catch(() => {
-  res.status(500).send("Database connection can't be established").end();
+  res.status(500).send("Database connection can't be established");
 });
 
 async function getMostRecentDate(pool, id = '') {
@@ -107,7 +107,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
     res.set('Access-Control-Allow-Methods', ['GET', 'POST']);
     res.set('Access-Control-Allow-Headers', ['Content-Type', 'Authorization']);
     res.set('Access-Control-Max-Age', '3600');
-    res.status(204).send('').end();
+    res.status(204).send('');
+    return;
   }
 
   const pool = await poolPromise;
@@ -118,10 +119,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
     const handleMostRecentDate = async (req, res) => {
       const { id = '' } = req.query;
       const mostRecentDate = await getMostRecentDate(pool, id);
-      res
-        .status(200)
-        .json(mostRecentDate || '')
-        .end();
+      res.status(200).json(mostRecentDate || '');
     };
 
     const handleCPISelect = async (req, res) => {
@@ -141,7 +139,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
       }
 
       const CPIs = await getCPISelect(pool, ids, dates);
-      res.status(200).json(CPIs).end();
+      res.status(200).json(CPIs);
     };
 
     const handleLive = async (req, res) => {
@@ -151,15 +149,14 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
       if (!queryStartDate) {
-        res.status(400).send('Query parameter start-date is required').end();
+        res.status(400).send('Query parameter start-date is required');
+        return;
       }
 
       const match = queryStartDate.match(/(\d{4})-(\d{2})/);
       if (!match) {
-        res
-          .status(400)
-          .send('Query parameter start-date is not a valid date')
-          .end();
+        res.status(400).send('Query parameter start-date is not a valid date');
+        return;
       }
 
       const startDate = { year: +match[1], month: +match[2] };
@@ -171,10 +168,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
         startDate.month < 1 ||
         startDate.month > 12
       ) {
-        res
-          .status(400)
-          .send('Query parameter start-date is not a valid date')
-          .end();
+        res.status(400).send('Query parameter start-date is not a valid date');
+        return;
       }
 
       const mostRecentDate = await getMostRecentDate(pool, 'CC13-0111101100');
@@ -195,10 +190,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
       );
 
       if (nativeEndDate.getTime() < nativeStartDate.getTime()) {
-        res
-          .status(400)
-          .send('Query parameter start-date lies in the future')
-          .end();
+        res.status(400).send('Query parameter start-date lies in the future');
+        return;
       }
 
       let dates = [];
@@ -214,7 +207,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
       }
 
       const CPIs = await getCPISelect(pool, ids, dates);
-      res.status(200).json(CPIs).end();
+      res.status(200).json(CPIs);
     };
 
     const handleProductSelect = async (req, res) => {
@@ -222,7 +215,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
       if (!ids || ids.length === 0) {
-        res.status(400).send('Missing query parameter <i>ids</i>').end();
+        res.status(400).send('Missing query parameter <i>ids</i>');
+        return;
       }
 
       let sql = 'SELECT * FROM products WHERE id IN (?)';
@@ -236,7 +230,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
         entries.push({ id: missingIds[i], added: 0, removed: 0 });
       }
 
-      res.status(200).json(entries).end();
+      res.status(200).json(entries);
     };
 
     const handleMostOftenRemoved = async (req, res) => {
@@ -253,7 +247,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
       const entries = await pool.query(sql, inserts);
 
-      res.status(200).json(entries).end();
+      res.status(200).json(entries);
     };
 
     async function handleConsumerPriceIndex(req, res) {
@@ -269,8 +263,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
               'Valid modes for table <i>consumer-price-index</i>:',
               '<i>most-recent-date</i>, <i>select</i>, <i>live</i>',
             ].join(' ')
-          )
-          .end();
+          );
     }
 
     async function handleProducts(req, res) {
@@ -286,8 +279,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
               'Valid modes for table <i>products</i>:',
               '<i>most-often-removed</i>, <i>select</i>',
             ].join(' ')
-          )
-          .end();
+          );
     }
 
     if (table === 'consumer-price-index') {
@@ -342,7 +334,10 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const columns = ['id', 'name', 'year', 'month', 'value'];
       const { body: data } = req;
       const { ok: isValid, msg: dataMsg } = checkCpiData(data, columns);
-      if (!isValid) res.status(400).send(dataMsg).end();
+      if (!isValid) {
+        res.status(400).send(dataMsg);
+        return;
+      }
 
       // insert data into database
       try {
@@ -356,7 +351,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
           await pool.query(sql, [data, data.value]);
         }
       } catch (err) {
-        return res.status(500).send('Unable to insert data into table').end();
+        res.status(500).send('Unable to insert data into table');
+        return;
       }
 
       res.status(200).send('');
@@ -380,7 +376,10 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
       // check if the provided data is valid
       const { ok: isValid, msg: dataMsg } = checkProductData(data);
-      if (!isValid) res.status(400).send(dataMsg).end();
+      if (!isValid) {
+        res.status(400).send(dataMsg);
+        return;
+      }
 
       const ids = new Set();
 
@@ -419,7 +418,10 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
     // check if request is authorized
     const { ok: isAuthorized, msg: authMsg } = await authorize(req);
-    if (!isAuthorized) res.status(401).send(authMsg).end();
+    if (!isAuthorized) {
+      res.status(401).send(authMsg);
+      return;
+    }
 
     if (table === 'consumer-price-index') {
       await updateConsumerPriceIndex(req, res);
