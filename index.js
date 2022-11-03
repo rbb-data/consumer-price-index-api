@@ -111,6 +111,9 @@ functions.http('consumer-price-index-api', async (req, res) => {
     return;
   }
 
+  // cache alle responses for an hour
+  res.set('Cache-Control', 'public, max-age=3600');
+
   const pool = await poolPromise;
 
   async function handleGET(req, res) {
