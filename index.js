@@ -46,7 +46,7 @@ const poolPromise = createPool().catch(() => {
 
 async function getMostRecentDate(pool, id = '') {
   const sql = [
-    'SELECT year, month FROM consumer_price_index',
+    'SELECT year, month, created FROM consumer_price_index',
     'ORDER BY year DESC, month DESC LIMIT 1',
   ];
   if (id) sql.splice(1, 0, 'WHERE id = ?');
