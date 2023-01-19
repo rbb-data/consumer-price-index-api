@@ -25,12 +25,9 @@ The database contains two tables, `consumer-price-index` and `products`. `consum
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=CC13-0111101100,CC13-0111109100,CC13-0111201100`
     - `start-date=YYYY-MM`, e.g. `2022-01`
 
-- `table=products`
-  - `mode=select`: yields a list of records for the given product ids as `[ { id: <ID>, added: <INT>, removed: <INT> }, ... ]`, where `added` is the number of times a product has been added to the cart and `removed` is the number of times a product has been removed
+- `table=survey`
+  - `mode=select`: yields a list of records for the given product ids as `[ { id: <ID>, base_base: <INT>, base_premium: <INT>, base_none: <INT>, premium_base: <INT>, premium_premium: <INT>, premium_none: <INT> }, ... ]`,
     - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=ravioli,rouladen`
-  - `mode=most-often-removed`: yields a list of products that have been removed most often
-    - `ids=<ID>,<ID>,...,<ID>`, if given, a subset of this id list is returned
-    - `limit=<INT>`: number of products to return (default: 3)
 
 ### POST
 
@@ -40,8 +37,8 @@ You'll need to authenticate yourself using a Bearer token.
 
   - body sent is either a single json object with fields `id` (category id, e.g. 'CC13-0111101100'), `name` (category name), `year` (e.g. 2022), `month` (1-12) and `value` (consumer price index) or a list of such objects
 
-- `table=products`
-  - body sent is a json object such as `{ added: [<ID>, ...], removed: [<ID>, ...] }`
+- `table=survey`
+  - body sent is a json object such as `{ id: <ID>, before: <KEY_BEFORE>, after: <KEY_AFTER> }` where `<KEY_BEFORE>` is one of `{'base', 'premium'}` and `<KEY_AFTER>` is one of `{'base', 'premium', 'none'}`
 
 ## Development
 

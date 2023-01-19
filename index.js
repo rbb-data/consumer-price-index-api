@@ -41,7 +41,7 @@ const createPool = async () => {
 
 // establish database connection
 const poolPromise = createPool().catch(() => {
-  res.status(500).send("Database connection can't be established");
+  console.error("Database connection can't be established");
 });
 
 async function getMostRecentDate(pool, id = '') {
@@ -152,13 +152,15 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
       if (!queryStartDate) {
-        res.status(400).send('Query parameter start-date is required');
+        res.status(400).send('Query parameter <i>start-date</i> is required');
         return;
       }
 
       const match = queryStartDate.match(/(\d{4})-(\d{2})/);
       if (!match) {
-        res.status(400).send('Query parameter start-date is not a valid date');
+        res
+          .status(400)
+          .send('Query parameter <i>start-date</i> is not a valid date');
         return;
       }
 
@@ -171,7 +173,9 @@ functions.http('consumer-price-index-api', async (req, res) => {
         startDate.month < 1 ||
         startDate.month > 12
       ) {
-        res.status(400).send('Query parameter start-date is not a valid date');
+        res
+          .status(400)
+          .send('Query parameter <i>start-date</i> is not a valid date');
         return;
       }
 
@@ -193,7 +197,9 @@ functions.http('consumer-price-index-api', async (req, res) => {
       );
 
       if (nativeEndDate.getTime() < nativeStartDate.getTime()) {
-        res.status(400).send('Query parameter start-date lies in the future');
+        res
+          .status(400)
+          .send('Query parameter <i>start-date</i> lies in the future');
         return;
       }
 
@@ -213,8 +219,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
       res.status(200).json(CPIs);
     };
 
-    const handleProductSelect = async (req, res) => {
-      const { ids: queryIds } = req.query;
+    const handleSurveySelect = async (req, res) => {
+      const { ids: queryIds, table } = req.query;
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
       if (!ids || ids.length === 0) {
@@ -222,7 +228,8 @@ functions.http('consumer-price-index-api', async (req, res) => {
         return;
       }
 
-      let sql = 'SELECT * FROM products WHERE id IN (?)';
+      const escapedTable = pool.escapeId(table);
+      let sql = `SELECT * FROM ${escapedTable} WHERE id IN (?)`;
       const entries = await pool.query(sql, [ids]);
 
       const fetchedIds = entries.map((entry) => entry.id);
@@ -230,25 +237,16 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
       // add zero counts for products not in the database
       for (let i = 0; i < missingIds.length; i++) {
-        entries.push({ id: missingIds[i], added: 0, removed: 0 });
+        entries.push({
+          id: missingIds[i],
+          base_base: 0,
+          base_premium: 0,
+          base_none: 0,
+          premium_base: 0,
+          premium_premium: 0,
+          premium_none: 0,
+        });
       }
-
-      res.status(200).json(entries);
-    };
-
-    const handleMostOftenRemoved = async (req, res) => {
-      let { ids: queryIds, limit = 3 } = req.query;
-
-      const ids = queryIds && decodeURIComponent(queryIds).split(',');
-      limit = +limit;
-
-      let sql = 'SELECT * FROM products';
-      if (ids && ids.length > 0) sql += ' WHERE id IN (?)';
-      sql += ' ORDER BY removed DESC LIMIT ?';
-
-      const inserts = ids && ids.length > 0 ? [ids, limit] : [limit];
-
-      const entries = await pool.query(sql, inserts);
 
       res.status(200).json(entries);
     };
@@ -262,38 +260,39 @@ functions.http('consumer-price-index-api', async (req, res) => {
           .status(400)
           .send(
             [
-              'Mode is invalid.',
+              'Parameter <i>mode</i> is invalid.',
               'Valid modes for table <i>consumer-price-index</i>:',
               '<i>most-recent-date</i>, <i>select</i>, <i>live</i>',
             ].join(' ')
           );
     }
 
-    async function handleProducts(req, res) {
-      if (mode === 'select') await handleProductSelect(req, res);
-      else if (mode === 'most-often-removed')
-        await handleMostOftenRemoved(req, res);
+    async function handleSurvey(req, res) {
+      if (mode === 'select') await handleSurveySelect(req, res);
       else
         res
           .status(200)
           .send(
             [
-              'Mode is invalid.',
-              'Valid modes for table <i>products</i>:',
-              '<i>most-often-removed</i>, <i>select</i>',
+              'Parameter <i>mode</i> is invalid.',
+              'Valid modes for table <i>survey</i>:',
+              '<i>select</i>',
             ].join(' ')
           );
     }
 
     if (table === 'consumer-price-index') {
       await handleConsumerPriceIndex(req, res);
-    } else if (table === 'products') {
-      await handleProducts(req, res);
+    } else if (table === 'survey' || table === 'survey_test') {
+      await handleSurvey(req, res);
     } else {
       res
         .status(400)
         .send(
-          'Table is invalid. Valid tables: <i>consumer-price-index</i>, <i>products</i>'
+          [
+            'Parameter <i>table</i> is missing or invalid.',
+            'Valid tables are: <i>consumer-price-index</i>, <i>survey</i>, <i>survey_test</i>',
+          ].join(' ')
         );
     }
   }
@@ -361,60 +360,62 @@ functions.http('consumer-price-index-api', async (req, res) => {
       res.status(200).send('');
     };
 
-    const checkProductData = (data) => {
+    const checkSurveyData = (data) => {
       if (!data) return { ok: false, msg: 'No data provided' };
 
-      if (!data.added || !data.removed)
-        return { ok: false, msg: 'Invalid data format' };
+      if (
+        data.id == undefined ||
+        !data.id ||
+        data.before == undefined ||
+        data.after == undefined
+      ) {
+        return {
+          ok: false,
+          msg: 'Invalid data format, must contain fields "id", "before" and "after"',
+        };
+      }
 
-      if (!Array.isArray(data.added) || !Array.isArray(data.removed)) {
-        return { ok: false, msg: 'Invalid data format' };
+      const { before, after } = data;
+
+      if (!['base', 'premium'].includes(before)) {
+        return {
+          ok: false,
+          msg: 'Invalid data format, "before" must be one one "base" or "premium"',
+        };
+      }
+
+      if (!['base', 'premium', 'none'].includes(after)) {
+        return {
+          ok: false,
+          msg: 'Invalid data format, "after" must be one one "base", "premium" or "none"',
+        };
       }
 
       return { ok: true };
     };
 
-    const updateProducts = async (req, res) => {
+    const updateSurvey = async (req, res) => {
       const { body: data } = req;
+      const { table } = req.query;
 
       // check if the provided data is valid
-      const { ok: isValid, msg: dataMsg } = checkProductData(data);
+      const { ok: isValid, msg: dataMsg } = checkSurveyData(data);
       if (!isValid) {
         res.status(400).send(dataMsg);
         return;
       }
 
-      const ids = new Set();
-
-      const nAdded = new Map();
-      for (let i = 0; i < data.added.length; i++) {
-        const id = data.added[i];
-        ids.add(id);
-        if (!nAdded.has(id)) nAdded.set(id, 0);
-        nAdded.set(id, nAdded.get(id) + 1);
-      }
-
-      const nRemoved = new Map();
-      for (let i = 0; i < data.removed.length; i++) {
-        const id = data.removed[i];
-        ids.add(id);
-        if (!nRemoved.has(id)) nRemoved.set(id, 0);
-        nRemoved.set(id, nRemoved.get(id) + 1);
-      }
-
-      const entries = Array.from(ids).map((id) => [
-        id,
-        nAdded.has(id) ? nAdded.get(id) : 0,
-        nRemoved.has(id) ? nRemoved.get(id) : 0,
-      ]);
+      const { id } = data;
+      const column = data.before + '_' + data.after;
+      const escapedColumn = pool.escapeId(column);
+      const escapedTable = pool.escapeId(table);
 
       const sql = [
-        'INSERT INTO products (id, added, removed) VALUES ?',
+        `INSERT INTO ${escapedTable} (id, ${escapedColumn}) values (?, 1)`,
         'ON DUPLICATE KEY UPDATE',
-        'added = VALUES(added) + added,',
-        'removed = VALUES(removed) + removed',
+        `${escapedColumn} = VALUES(${escapedColumn}) + ${escapedColumn}`,
       ].join(' ');
-      await pool.query(sql, [entries]);
+      await pool.query(sql, [id]);
 
       res.status(200).send('');
     };
@@ -428,12 +429,17 @@ functions.http('consumer-price-index-api', async (req, res) => {
 
     if (table === 'consumer-price-index') {
       await updateConsumerPriceIndex(req, res);
-    } else if (table === 'products') {
-      await updateProducts(req, res);
+    } else if (table === 'survey' || table === 'survey_test') {
+      await updateSurvey(req, res);
     } else {
       res
         .status(400)
-        .send('Table is invalid. Valid tables: consumer-price-index, products');
+        .send(
+          [
+            'Parameter <i>table</i> is missing or invalid.',
+            'Valid tables are: <i>consumer-price-index</i>, <i>survey</i>, <i>survey_test</i>',
+          ].join(' ')
+        );
     }
   }
 
