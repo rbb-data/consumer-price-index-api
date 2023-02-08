@@ -1,14 +1,6 @@
 const functions = require('@google-cloud/functions-framework');
 const mysql = require('promise-mysql');
 
-const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
-const client = new SecretManagerServiceClient();
-
-const accessSecret = async (name) => {
-  const [secret] = await client.accessSecretVersion({ name });
-  return secret.payload.data.toString('utf8');
-};
-
 const createUnixSocketPool = async (config) => {
   const dbSocketPath = process.env.DB_SOCKET_PATH || '/cloudsql';
 
@@ -30,11 +22,6 @@ const createPool = async () => {
     waitForConnections: true,
     queueLimit: 0,
   };
-
-  // access db password and store it in an environment variable
-  process.env.DB_PASS = await accessSecret(
-    process.env.CLOUD_SQL_CREDENTIALS_SECRET
-  );
 
   return createUnixSocketPool(config);
 };
@@ -223,12 +210,15 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const { ids: queryIds, table } = req.query;
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
+      const escapedTable = pool.escapeId(table);
+
       if (!ids || ids.length === 0) {
-        res.status(400).send('Missing query parameter <i>ids</i>');
+        let sql = `SELECT * FROM ${escapedTable}`;
+        const entries = await pool.query(sql);
+        res.status(200).json(entries);
         return;
       }
 
-      const escapedTable = pool.escapeId(table);
       let sql = `SELECT * FROM ${escapedTable} WHERE id IN (?)`;
       const entries = await pool.query(sql, [ids]);
 
@@ -308,7 +298,7 @@ functions.http('consumer-price-index-api', async (req, res) => {
       }
 
       const [, token] = authorization.match(/Bearer (.*)/);
-      const secret = await accessSecret(process.env.CLOUD_API_SECRET);
+      const secret = process.env.CLOUD_API_SECRET;
 
       if (token !== secret) return { ok: false, msg: 'Token invalid' };
 

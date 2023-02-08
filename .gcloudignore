@@ -12,3 +12,4 @@ rbb-data-inflation-fc4113adea34.json
 .env.development
 test*
 .vscode
+*.local

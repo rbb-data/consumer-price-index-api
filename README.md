@@ -27,7 +27,7 @@ The database contains two tables, `consumer-price-index` and `products`. `consum
 
 - `table=survey`
   - `mode=select`: yields a list of records for the given product ids as `[ { id: <ID>, base_base: <INT>, base_premium: <INT>, base_none: <INT>, premium_base: <INT>, premium_premium: <INT>, premium_none: <INT> }, ... ]`,
-    - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=ravioli,rouladen`
+    - `ids=<ID>,<ID>,...,<ID>`, e.g. `ids=ravioli,rouladen` (if not given, all products are returned)
 
 ### POST
 
@@ -51,11 +51,13 @@ You'll need to authenticate yourself using a Bearer token.
 > **Note**
 >
 > Add the necessary credentials by downloading the key file that belongs to the service account `rbb-data-inflation@appspot.gserviceaccount.com` and storing the downloaded file as `rbb-data-inflation-fc4113adea34.json`.
+> Create a local environment file `.env.local` and add the following variables: DB_PASS, CLOUD_API_SECRET (you can find them in the cloud's secret manager).
 
-Load environment variables from `.env`:
+Load environment variables from `.env` and `.env.local`:
 
 ```bash
 export $(cat .env | xargs)
+export $(cat .env.local | xargs)
 ```
 
 Create a directory for the Unix socket and give write access to the user running the proxy:
