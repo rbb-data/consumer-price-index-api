@@ -1,6 +1,6 @@
 # Consumer price index API (Germany)
 
-Exposes consumer price indices from [Genesis (Destatis)](https://www-genesis.destatis.de/genesis//online?operation=table&code=61111-0006&bypass=true&levelindex=0&levelid=1657617156882#abreadcrumb)
+Exposes consumer price indices from [Genesis (Destatis)](https://www-genesis.destatis.de/genesis//online?operation=table&code=61111-0006&bypass=true&levelindex=0&levelid=1657617156882#abreadcrumb) and stores data from a user survey that asked questions about the impact of the inflation on a user's supermarker visit
 
 Live at: https://europe-west3-rbb-data-inflation.cloudfunctions.net/consumer-price-index-api
 
@@ -8,7 +8,7 @@ Live at: https://europe-west3-rbb-data-inflation.cloudfunctions.net/consumer-pri
 
 ### GET
 
-The database contains two tables, `consumer-price-index` and `products`. `consumer-price-indices` stores CPI values for a list of groceries since 2015.`products` counts the number of times a product has been added and removed from a basket.
+The database contains two tables, `consumer-price-index` and `survey`.
 
 - `table=consumer-price-index`
 

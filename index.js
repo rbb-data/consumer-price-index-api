@@ -210,6 +210,9 @@ functions.http('consumer-price-index-api', async (req, res) => {
       const { ids: queryIds, table } = req.query;
       const ids = queryIds && decodeURIComponent(queryIds).split(',');
 
+      // do not cache this response
+      res.set('Cache-Control', 'public, max-age=0');
+
       const escapedTable = pool.escapeId(table);
 
       if (!ids || ids.length === 0) {
